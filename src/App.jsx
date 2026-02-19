@@ -1,4 +1,4 @@
-import { use, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import {useDebounce} from "react-use"
 import Search from "./components/Search"
 import Spinner from "./components/Spinner";
@@ -19,7 +19,7 @@ const App = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [movieList, setMovieList] = useState([])
-  const [isloading, setIsloading] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState()
   const [trendingMovies, setTrendingMovies] = useState([])
 
@@ -28,36 +28,45 @@ const App = () => {
   }, 500, [searchTerm])
 
   const fetchMovies = async (query = '') => {
-    setIsloading(true);
-    try {
-      const endPoint = query ?
-        `${API_BASE_URL}/search/movie?query=${encodeURIComponent(query)}` :
-        `${API_BASE_URL}/discover/movie?sort_by=popularity.desc`;
-      const response = await fetch(endPoint, API_OPTIONS)
+  const controller = new AbortController();
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-      
-      const data = await response.json()
+  setIsLoading(true);
 
-      if (data.response === 'False') {
-        setErrorMessage(data.error || 'No movies found.')
-        setMovieList([])
-        return;
-      }
-      setMovieList(data.results || [])
-      setErrorMessage('')  
-      if(query && data.results.length > 0)
-        await updateSearchCount(searchTerm,data.results[0]);
+  try {
+    const endpoint = query
+      ? `${API_BASE_URL}/search/movie?query=${encodeURIComponent(query)}`
+      : `${API_BASE_URL}/discover/movie?sort_by=popularity.desc`;
 
-    } catch (error) {
-      console.error('Error fetching movies: ', error)
-      setErrorMessage('Failed to fetch movies. Please try again later.')
-    } finally {
-      setIsloading(false);
+    const response = await fetch(endpoint, {
+      ...API_OPTIONS,
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(response.status);
     }
+
+    const data = await response.json();
+
+    setMovieList(data.results || []);
+    setErrorMessage('');
+
+    if (query && data.results?.length > 0) {
+      await updateSearchCount(query, data.results[0]);
+    }
+
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      console.error(err);
+      setErrorMessage('Failed to load movies');
+    }
+  } finally {
+    setIsLoading(false);
   }
+
+  return () => controller.abort();
+};
+
 
   const fetchTrendingMovies = async () => {
     try {
@@ -106,7 +115,7 @@ const App = () => {
 
           <section className="all-movies">
             <h2>All Movies</h2>
-            {isloading ? (
+            {isLoading ? (
               <Spinner />
             ) : errorMessage ? (
               <p className="text-red-500">{errorMessage}</p>

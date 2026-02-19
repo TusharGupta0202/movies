@@ -10,56 +10,67 @@ const client = new Client()
 
     const tablesDB = new TablesDB(client);
 
-export const updateSearchCount = async (searchTerm,movie) => {
-    try {
-        const result = await tablesDB.listRows({
-            databaseId: DATABASE_ID,
-            tableId: TABLE_ID,
-            queries: [
-                Query.equal('movie_id', movie.id)
-            ]
-        });
-        if(result && result.total > 0) {
-            const row = result.rows[0];
-            await tablesDB.updateRow({
-                databaseId: DATABASE_ID,
-                tableId: TABLE_ID,
-                rowId: row.$id,
-                data: {
-                    count: row.count + 1
-                }
-            });
-        } else {
-            await tablesDB.createRow({
-                databaseId: DATABASE_ID,
-                tableId: TABLE_ID,
-                rowId: ID.unique(),
-                data: {
-                    searchTerm,
-                    count: 1,
-                    movie_id: movie.id,
-                    poster_url: `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-                }
-            });
-        }
+export const updateSearchCount = async (searchTerm, movie) => {
+  if (!movie?.id) return;
 
-    } catch (error) {
-        console.error('Error updating search count: ', error);
+  try {
+    const result = await tablesDB.listRows({
+      databaseId: DATABASE_ID,
+      tableId: TABLE_ID,
+      queries: [
+        Query.equal('movie_id', movie.id.toString())
+      ]
+    });
+
+    if (result.total > 0) {
+      const row = result.rows[0];
+
+      await tablesDB.updateRow({
+        databaseId: DATABASE_ID,
+        tableId: TABLE_ID,
+        rowId: row.$id,
+        data: {
+          count: row.count + 1,
+          last_searched: new Date().toISOString()
+        }
+      });
+
+    } else {
+      await tablesDB.createRow({
+        databaseId: DATABASE_ID,
+        tableId: TABLE_ID,
+        rowId: ID.unique(),
+        data: {
+          searchTerm,
+          count: 1,
+          movie_id: movie.id.toString(),
+          poster_url: `https://image.tmdb.org/t/p/w500${movie.poster_path}`,
+          last_searched: new Date().toISOString()
+        }
+      });
     }
-}
+
+  } catch (err) {
+    console.error('Appwrite error:', err);
+  }
+};
+
 
 export const getTrendingMovies = async () => {
-    try {
-        const result = await tablesDB.listRows({
-            databaseId: DATABASE_ID,
-            tableId: TABLE_ID,
-            queries: [
-                Query.orderDesc('count'),
-                Query.limit(10)
-            ]
-        });
-        return result.rows;
-    } catch (e) {
-        console.error('Error fetching trending movies:', e);
-    }
-}
+  try {
+    const result = await tablesDB.listRows({
+      databaseId: DATABASE_ID,
+      tableId: TABLE_ID,
+      queries: [
+        Query.orderDesc('count'),
+        Query.limit(10)
+      ]
+    });
+
+    return result.rows || [];
+
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+};
