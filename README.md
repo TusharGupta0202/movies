@@ -1,4 +1,4 @@
-#React Movies App (TMDB + Appwrite)
+# React Movies App (TMDB + Appwrite)
 
 A modern movie discovery web application built with React, TMDB API, and Appwrite.
 It allows users to search movies, view trending movies based on user searches, and provides a smooth, responsive UI.
@@ -302,4 +302,5 @@ If you like this project:
 🍴 Fork it
 🐛 Report issues
 🚀 Suggest features
+
 
